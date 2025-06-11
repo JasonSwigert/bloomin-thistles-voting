@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloomin' Thistles Song Collection</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .submission-section, .admin-section {
+            display: none;
+        }
+
+        .submission-section.active, .admin-section.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            min-height: 180px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 18px 35px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.admin-btn {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            margin-top: 15px;
+        }
+
+        .btn.admin-btn:hover {
+            box-shadow: 0 12px 25px rgba(40, 167, 69, 0.3);
+        }
+
+        .success-message {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .success-message h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .song-counter {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .submitted-songs {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .submitted-songs h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .song-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .song-list li {
+            background: white;
+            padding: 12px 18px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-weight: 500;
+        }
+
+        .member-submissions {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .member-submission {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            border-left: 5px solid #667eea;
+        }
+
+        .member-name {
+            font-weight: 700;
+            color: #333;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .master-list {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .master-list h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            text-align: center;
+        }
+
+        .master-list .song-list li {
+            border-left-color: #28a745;
+        }
+
+        .stats {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .stats h3 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .instructions {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+        }
+
+        .instructions h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .instructions p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .btn {
+                padding: 15px 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌸 Bloomin' Thistles Spring Show</h1>
+            <p>Submit your 5 favorite songs for consideration</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Song Submission Section -->
+            <div class="submission-section active">
+                <div class="instructions">
+                    <h4>Instructions:</h4>
+                    <p>Please submit exactly 5 songs you'd like to play in our spring show. Enter each song on a separate line. Include artist name if there might be confusion (e.g., "Hey Joe - Jimi Hendrix").</p>
+                </div>
+
+                <div class="input-group">
+                    <label for="memberName">Your Name:</label>
+                    <input type="text" id="memberName" placeholder="Enter your full name">
+                </div>
+                
+                <div class="input-group">
+                    <label for="songSubmissions">Your 5 Favorite Songs (one per line):</label>
+                    <div class="song-counter">
+                        Songs entered: <span id="songCount">0</span>/5
+                    </div>
+                    <textarea id="songSubmissions" placeholder="Song 1&#10;Song 2&#10;Song 3&#10;Song 4&#10;Song 5"></textarea>
+                </div>
+                
+                <button class="btn" onclick="submitSongs()">Submit My Songs</button>
+                <button class="btn admin-btn" onclick="showAdmin()">View All Submissions (Admin)</button>
+            </div>
+
+            <!-- Admin Section -->
+            <div class="admin-section">
+                <div class="stats">
+                    <h3 id="submissionCount">0/9 Members</h3>
+                    <p>have submitted their songs</p>
+                </div>
+
+                <div id="memberSubmissions" class="member-submissions"></div>
+
+                <div id="masterSongList" class="master-list" style="display: none;">
+                    <h3>🎵 Complete Song List for Voting (45 Songs)</h3>
+                    <ul class="song-list" id="allSongs"></ul>
+                    <button class="btn" onclick="exportSongList()">Copy Song List for Voting App</button>
+                </div>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn" onclick="showSubmission()">Back to Submission</button>
+                    <button class="btn admin-btn" onclick="clearAllData()" style="background: linear-gradient(135deg, #dc3545, #c82333);">Clear All Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allSubmissions = JSON.parse(localStorage.getItem('thistlesSubmissions') || '{}');
+
+        // Update song counter as user types
+        document.getElementById('songSubmissions').addEventListener('input', function() {
+            const songs = this.value.trim().split('\n').filter(s => s.trim());
+            document.getElementById('songCount').textContent = songs.length;
+            
+            // Change color based on count
+            const counter = document.querySelector('.song-counter');
+            if (songs.length === 5) {
+                counter.style.background = '#d4edda';
+                counter.style.color = '#155724';
+            } else if (songs.length > 5) {
+                counter.style.background = '#f8d7da';
+                counter.style.color = '#721c24';
+            } else {
+                counter.style.background = '#f8f9fa';
+                counter.style.color = '#666';
+            }
+        });
+
+        function submitSongs() {
+            const memberName = document.getElementById('memberName').value.trim();
+            const songText = document.getElementById('songSubmissions').value.trim();
+            
+            if (!memberName) {
+                alert('Please enter your name');
+                return;
+            }
+            
+            if (!songText) {
+                alert('Please enter your song selections');
+                return;
+            }
+            
+            const songs = songText.split('\n').map(s => s.trim()).filter(s => s);
+            
+            if (songs.length !== 5) {
+                alert(`Please enter exactly 5 songs. You entered ${songs.length}.`);
+                return;
+            }
+            
+            // Check for duplicates within submission
+            const uniqueSongs = [...new Set(songs)];
+            if (uniqueSongs.length !== songs.length) {
+                alert('Please remove duplicate songs from your list.');
+                return;
+            }
+            
+            // Check if member already submitted
+            if (allSubmissions[memberName]) {
+                if (!confirm('You have already submitted songs. Do you want to update your submission?')) {
+                    return;
+                }
+            }
+            
+            // Save submission
+            allSubmissions[memberName] = {
+                songs: songs,
+                timestamp: new Date().toISOString()
+            };
+            
+            localStorage.setItem('thistlesSubmissions', JSON.stringify(allSubmissions));
+            
+            // Show success message
+            const container = document.querySelector('.submission-section');
+            container.innerHTML = `
+                <div class="success-message">
+                    <h3>✅ Submission Successful!</h3>
+                    <p>Thank you, ${memberName}! Your 5 songs have been recorded.</p>
+                </div>
+                <div class="submitted-songs">
+                    <h3>Your Songs:</h3>
+                    <ul class="song-list">
+                        ${songs.map(song => `<li>${song}</li>`).join('')}
+                    </ul>
+                </div>
+                <button class="btn" onclick="location.reload()">Submit Another Member's Songs</button>
+                <button class="btn admin-btn" onclick="showAdmin()">View All Submissions (Admin)</button>
+            `;
+        }
+
+        function showAdmin() {
+            document.querySelector('.submission-section').classList.remove('active');
+            document.querySelector('.admin-section').classList.add('active');
+            updateAdminView();
+        }
+
+        function showSubmission() {
+            document.querySelector('.admin-section').classList.remove('active');
+            document.querySelector('.submission-section').classList.add('active');
+        }
+
+        function updateAdminView() {
+            const memberCount = Object.keys(allSubmissions).length;
+            document.getElementById('submissionCount').textContent = `${memberCount}/9 Members`;
+            
+            const container = document.getElementById('memberSubmissions');
+            container.innerHTML = '<h3>Individual Submissions:</h3>';
+            
+            if (memberCount === 0) {
+                container.innerHTML += '<p style="text-align: center; color: #666; padding: 20px;">No submissions yet.</p>';
+                document.getElementById('masterSongList').style.display = 'none';
+                return;
+            }
+            
+            // Show individual submissions
+            Object.entries(allSubmissions).forEach(([name, data]) => {
+                const submissionDiv = document.createElement('div');
+                submissionDiv.className = 'member-submission';
+                submissionDiv.innerHTML = `
+                    <div class="member-name">${name}</div>
+                    <ul class="song-list">
+                        ${data.songs.map(song => `<li>${song}</li>`).join('')}
+                    </ul>
+                    <small style="color: #666;">Submitted: ${new Date(data.timestamp).toLocaleString()}</small>
+                `;
+                container.appendChild(submissionDiv);
+            });
+            
+            // Show master list if we have submissions
+            if (memberCount > 0) {
+                showMasterList();
+            }
+        }
+
+        function showMasterList() {
+            const masterContainer = document.getElementById('masterSongList');
+            const songList = document.getElementById('allSongs');
+            
+            // Collect all songs
+            const allSongs = [];
+            Object.values(allSubmissions).forEach(data => {
+                allSongs.push(...data.songs);
+            });
+            
+            // Remove duplicates and sort
+            const uniqueSongs = [...new Set(allSongs)].sort();
+            
+            songList.innerHTML = uniqueSongs.map(song => `<li>${song}</li>`).join('');
+            
+            // Update header with count
+            masterContainer.querySelector('h3').textContent = `🎵 Complete Song List for Voting (${uniqueSongs.length} Songs)`;
+            
+            masterContainer.style.display = 'block';
+            
+            // Show warning if not exactly 45 songs
+            if (uniqueSongs.length !== 45) {
+                const warning = document.createElement('div');
+                warning.className = 'warning';
+                if (uniqueSongs.length < 45) {
+                    warning.innerHTML = `<strong>Note:</strong> Only ${uniqueSongs.length} unique songs collected. Need ${45 - uniqueSongs.length} more songs to reach 45 total.`;
+                } else {
+                    warning.innerHTML = `<strong>Note:</strong> ${uniqueSongs.length} unique songs collected. Some songs were submitted by multiple members.`;
+                }
+                masterContainer.insertBefore(warning, masterContainer.firstChild.nextSibling);
+            }
+        }
+
+        function exportSongList() {
+            const allSongs = [];
+            Object.values(allSubmissions).forEach(data => {
+                allSongs.push(...data.songs);
+            });
+            
+            const uniqueSongs = [...new Set(allSongs)].sort();
+            const songText = uniqueSongs.join('\n');
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(songText).then(() => {
+                alert(`Song list copied to clipboard! (${uniqueSongs.length} songs)\n\nPaste this into the voting app.`);
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = songText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert(`Song list copied to clipboard! (${uniqueSongs.length} songs)\n\nPaste this into the voting app.`);
+            });
+        }
+
+        function clearAllData() {
+            if (confirm('This will permanently delete all song submissions. Are you absolutely sure?')) {
+                if (confirm('Last chance! This cannot be undone. Delete all submissions?')) {
+                    localStorage.removeItem('thistlesSubmissions');
+                    allSubmissions = {};
+                    location.reload();
+                }
+            }
+        }
+
+        // Load existing data on page load
+        window.onload = function() {
+            if (Object.keys(allSubmissions).length > 0) {
+                const notice = document.createElement('div');
+                notice.className = 'warning';
+                notice.innerHTML = `<strong>Notice:</strong> ${Object.keys(allSubmissions).length} members have already submitted songs. You can add more submissions or view all submissions.`;
+                document.querySelector('.submission-section').insertBefore(notice, document.querySelector('.instructions').nextSibling);
+            }
+        };
+    </script>
+</body>
+</html>
