@@ -256,6 +256,28 @@
             line-height: 1.6;
         }
 
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #28a745;
+        }
+
+        .status-offline {
+            background: #dc3545;
+        }
+
         @media (max-width: 600px) {
             .header h1 {
                 font-size: 2rem;
@@ -276,11 +298,20 @@
         <div class="header">
             <h1>🌸 Bloomin' Thistles Spring Show</h1>
             <p>Submit your 5 favorite songs for consideration</p>
+            <p style="font-size: 0.9rem; margin-top: 10px;">
+                <span class="status-indicator" id="connectionStatus"></span>
+                <span id="connectionText">Connecting...</span>
+            </p>
         </div>
 
         <div class="main-content">
+            <!-- Loading Section -->
+            <div class="loading" id="loadingSection">
+                <p>🔄 Connecting to database...</p>
+            </div>
+
             <!-- Song Submission Section -->
-            <div class="submission-section active">
+            <div class="submission-section">
                 <div class="instructions">
                     <h4>Instructions:</h4>
                     <p>Please submit exactly 5 songs you'd like to play in our spring show. Enter each song on a separate line. Include artist name if there might be confusion (e.g., "Hey Joe - Jimi Hendrix").</p>
@@ -320,14 +351,67 @@
 
                 <div style="text-align: center; margin-top: 30px;">
                     <button class="btn" onclick="showSubmission()">Back to Submission</button>
-                    <button class="btn admin-btn" onclick="clearAllData()" style="background: linear-gradient(135deg, #dc3545, #c82333);">Clear All Data</button>
+                    <button class="btn admin-btn" onclick="clearAllData()" style="background: linear-gradient(135deg, #dc3545, #c82333);">Clear All Data (Admin Only)</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Firebase SDKs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+
     <script>
-        let allSubmissions = JSON.parse(localStorage.getItem('thistlesSubmissions') || '{}');
+        // Firebase Configuration
+        const firebaseConfig = {
+          apiKey: "AIzaSyDbAf-1kUxNyyMKx-bhvOJojeGyUHADrrU",
+          authDomain: "bloomin-thistles.firebaseapp.com",
+          databaseURL: "https://bloomin-thistles-default-rtdb.firebaseio.com",
+          projectId: "bloomin-thistles",
+          storageBucket: "bloomin-thistles.firebasestorage.app",
+          messagingSenderId: "1064631392885",
+          appId: "1:1064631392885:web:1de8a6f3c52def700bb63c"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const submissionsRef = database.ref('submissions');
+
+        let allSubmissions = {};
+        let isConnected = false;
+
+        // Connection monitoring
+        const connectedRef = database.ref(".info/connected");
+        connectedRef.on("value", (snap) => {
+            isConnected = snap.val() === true;
+            updateConnectionStatus();
+        });
+
+        function updateConnectionStatus() {
+            const statusIndicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (isConnected) {
+                statusIndicator.className = 'status-indicator status-online';
+                statusText.textContent = 'Connected';
+            } else {
+                statusIndicator.className = 'status-indicator status-offline';
+                statusText.textContent = 'Offline';
+            }
+        }
+
+        // Listen for real-time updates
+        submissionsRef.on('value', (snapshot) => {
+            allSubmissions = snapshot.val() || {};
+            updateAdminView();
+            hideLoading();
+        });
+
+        function hideLoading() {
+            document.getElementById('loadingSection').style.display = 'none';
+            document.querySelector('.submission-section').classList.add('active');
+        }
 
         // Update song counter as user types
         document.getElementById('songSubmissions').addEventListener('input', function() {
@@ -348,9 +432,14 @@
             }
         });
 
-        function submitSongs() {
+        async function submitSongs() {
             const memberName = document.getElementById('memberName').value.trim();
             const songText = document.getElementById('songSubmissions').value.trim();
+            
+            if (!isConnected) {
+                alert('Not connected to database. Please check your internet connection and try again.');
+                return;
+            }
             
             if (!memberName) {
                 alert('Please enter your name');
@@ -383,30 +472,32 @@
                 }
             }
             
-            // Save submission
-            allSubmissions[memberName] = {
-                songs: songs,
-                timestamp: new Date().toISOString()
-            };
-            
-            localStorage.setItem('thistlesSubmissions', JSON.stringify(allSubmissions));
-            
-            // Show success message
-            const container = document.querySelector('.submission-section');
-            container.innerHTML = `
-                <div class="success-message">
-                    <h3>✅ Submission Successful!</h3>
-                    <p>Thank you, ${memberName}! Your 5 songs have been recorded.</p>
-                </div>
-                <div class="submitted-songs">
-                    <h3>Your Songs:</h3>
-                    <ul class="song-list">
-                        ${songs.map(song => `<li>${song}</li>`).join('')}
-                    </ul>
-                </div>
-                <button class="btn" onclick="location.reload()">Submit Another Member's Songs</button>
-                <button class="btn admin-btn" onclick="showAdmin()">View All Submissions (Admin)</button>
-            `;
+            try {
+                // Save submission to Firebase
+                await submissionsRef.child(memberName).set({
+                    songs: songs,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                // Show success message
+                const container = document.querySelector('.submission-section');
+                container.innerHTML = `
+                    <div class="success-message">
+                        <h3>✅ Submission Successful!</h3>
+                        <p>Thank you, ${memberName}! Your 5 songs have been recorded.</p>
+                    </div>
+                    <div class="submitted-songs">
+                        <h3>Your Songs:</h3>
+                        <ul class="song-list">
+                            ${songs.map(song => `<li>${song}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <button class="btn" onclick="location.reload()">Submit Another Member's Songs</button>
+                    <button class="btn admin-btn" onclick="showAdmin()">View All Submissions (Admin)</button>
+                `;
+            } catch (error) {
+                alert('Error submitting songs: ' + error.message);
+            }
         }
 
         function showAdmin() {
@@ -437,12 +528,13 @@
             Object.entries(allSubmissions).forEach(([name, data]) => {
                 const submissionDiv = document.createElement('div');
                 submissionDiv.className = 'member-submission';
+                const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleString() : 'Unknown time';
                 submissionDiv.innerHTML = `
                     <div class="member-name">${name}</div>
                     <ul class="song-list">
                         ${data.songs.map(song => `<li>${song}</li>`).join('')}
                     </ul>
-                    <small style="color: #666;">Submitted: ${new Date(data.timestamp).toLocaleString()}</small>
+                    <small style="color: #666;">Submitted: ${timestamp}</small>
                 `;
                 container.appendChild(submissionDiv);
             });
@@ -472,6 +564,12 @@
             masterContainer.querySelector('h3').textContent = `🎵 Complete Song List for Voting (${uniqueSongs.length} Songs)`;
             
             masterContainer.style.display = 'block';
+            
+            // Clear any existing warnings
+            const existingWarning = masterContainer.querySelector('.warning');
+            if (existingWarning) {
+                existingWarning.remove();
+            }
             
             // Show warning if not exactly 45 songs
             if (uniqueSongs.length !== 45) {
@@ -510,24 +608,26 @@
             });
         }
 
-        function clearAllData() {
-            if (confirm('This will permanently delete all song submissions. Are you absolutely sure?')) {
-                if (confirm('Last chance! This cannot be undone. Delete all submissions?')) {
-                    localStorage.removeItem('thistlesSubmissions');
-                    allSubmissions = {};
-                    location.reload();
-                }
+        async function clearAllData() {
+            if (!confirm('This will permanently delete all song submissions. Are you absolutely sure?')) {
+                return;
+            }
+            
+            if (!confirm('Last chance! This cannot be undone. Delete all submissions?')) {
+                return;
+            }
+            
+            try {
+                await submissionsRef.remove();
+                alert('All data cleared successfully.');
+            } catch (error) {
+                alert('Error clearing data: ' + error.message);
             }
         }
 
-        // Load existing data on page load
+        // Show existing submissions notice on page load
         window.onload = function() {
-            if (Object.keys(allSubmissions).length > 0) {
-                const notice = document.createElement('div');
-                notice.className = 'warning';
-                notice.innerHTML = `<strong>Notice:</strong> ${Object.keys(allSubmissions).length} members have already submitted songs. You can add more submissions or view all submissions.`;
-                document.querySelector('.submission-section').insertBefore(notice, document.querySelector('.instructions').nextSibling);
-            }
+            // The real-time listener will handle showing existing data
         };
     </script>
 </body>
