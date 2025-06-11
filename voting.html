@@ -45,6 +45,11 @@
             opacity: 0.9;
         }
 
+        .header .status {
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
         .main-content {
             padding: 30px;
         }
@@ -310,6 +315,38 @@
             line-height: 1.6;
         }
 
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #28a745;
+        }
+
+        .status-offline {
+            background: #dc3545;
+        }
+
+        .voting-stats {
+            background: #e8f4f8;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
         @media (max-width: 600px) {
             .header h1 {
                 font-size: 2rem;
@@ -335,11 +372,20 @@
         <div class="header">
             <h1>🌸 Bloomin' Thistles Spring Show</h1>
             <p>Vote for your setlist democratically</p>
+            <p class="status">
+                <span class="status-indicator" id="connectionStatus"></span>
+                <span id="connectionText">Connecting...</span>
+            </p>
         </div>
 
         <div class="main-content">
+            <!-- Loading Section -->
+            <div class="loading" id="loadingSection">
+                <p>🔄 Connecting to database...</p>
+            </div>
+
             <!-- Setup Section -->
-            <div class="setup-section active">
+            <div class="setup-section">
                 <div class="instructions">
                     <h4>Voting Instructions:</h4>
                     <p><strong>Budget:</strong> You have 26 points total to spend on songs<br>
@@ -348,22 +394,40 @@
                     <strong>Goal:</strong> Select approximately 17 songs for a 1-hour show</p>
                 </div>
 
-                <h2>Setup Your Vote</h2>
-                <div class="input-group">
-                    <label for="voterName">Your Name:</label>
-                    <input type="text" id="voterName" placeholder="Enter your name">
+                <div id="voterSetup">
+                    <h2>Ready to Vote!</h2>
+                    <div class="input-group">
+                        <label for="voterName">Your Name:</label>
+                        <input type="text" id="voterName" placeholder="Enter your name">
+                    </div>
+                    
+                    <button class="btn" onclick="startVoting()">Start Voting</button>
                 </div>
-                
-                <div class="input-group">
-                    <label for="songList">Complete Song List (paste from collection app):</label>
-                    <textarea id="songList" placeholder="Paste the complete list of songs here, one per line..."></textarea>
+
+                <div id="adminSetup" style="display: none;">
+                    <h2>Admin Setup</h2>
+                    <div class="input-group">
+                        <label for="songList">Upload Song List (paste from collection app):</label>
+                        <textarea id="songList" placeholder="Paste the complete list of songs here, one per line..."></textarea>
+                    </div>
+                    
+                    <button class="btn" onclick="uploadSongList()">Upload Song List</button>
+                    <button class="btn" onclick="clearSongList()" style="margin-top: 10px; background: linear-gradient(135deg, #dc3545, #c82333);">Clear Song List</button>
                 </div>
-                
-                <button class="btn" onclick="startVoting()">Start Voting</button>
+
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn" onclick="toggleAdminMode()" style="background: linear-gradient(135deg, #6c757d, #495057); font-size: 14px; padding: 10px 20px;">Admin Setup</button>
+                </div>
             </div>
 
             <!-- Voting Section -->
             <div class="voting-section">
+                <div class="voting-stats">
+                    Voters: <span id="voterCount">0</span>/9 • 
+                    Total Votes: <span id="totalVotes">0</span> • 
+                    Total Vetoes: <span id="totalVetoes">0</span>
+                </div>
+
                 <div class="voter-stats">
                     <div class="points-remaining">Points Remaining: <span id="pointsLeft">26</span>/26</div>
                     <div class="veto-status">Veto Available: <span id="vetoStatus">Yes</span></div>
@@ -372,6 +436,7 @@
                 <div id="songsList"></div>
 
                 <button class="btn" id="submitVote" onclick="submitVote()" disabled>Submit Your Votes</button>
+                <button class="btn" onclick="showResults()" style="margin-top: 10px; background: linear-gradient(135deg, #28a745, #20c997);">View Current Results</button>
             </div>
 
             <!-- Results Section -->
@@ -384,15 +449,484 @@
                 <div class="results-list" id="resultsList"></div>
                 
                 <div class="admin-controls">
-                    <button class="btn" onclick="resetVoting()">Start New Vote</button>
+                    <button class="btn" onclick="backToVoting()">Back to Voting</button>
                     <button class="btn" onclick="viewAllResults()" style="margin-top: 10px; background: linear-gradient(135deg, #28a745, #20c997);">View All Songs & Scores</button>
+                    <button class="btn" onclick="resetVoting()" style="margin-top: 10px; background: linear-gradient(135deg, #dc3545, #c82333);">Reset All Voting (Admin)</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Firebase SDKs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+
     <script>
+        // Firebase Configuration - REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqJf8VqZ9ZqJ8QJ9JqJ8QJ9JqJ8QJ9JqJ",
+            authDomain: "bloomin-thistles-default-rtdb.firebaseapp.com",
+            databaseURL: "https://bloomin-thistles-default-rtdb.firebaseio.com",
+            projectId: "bloomin-thistles",
+            storageBucket: "bloomin-thistles.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456789"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const votesRef = database.ref('votes');
+        const vetoesRef = database.ref('vetoes');
+        const songsRef = database.ref('songList');
+
         let songs = [];
         let votes = {};
         let vetoes = {};
-        let voter
+        let voterName = '';
+        let pointsSpent = 0;
+        let vetoUsed = false;
+        let allVotes = {};
+        let allVetoes = {};
+        let isConnected = false;
+
+        // Connection monitoring
+        const connectedRef = database.ref(".info/connected");
+        connectedRef.on("value", (snap) => {
+            isConnected = snap.val() === true;
+            updateConnectionStatus();
+        });
+
+        function updateConnectionStatus() {
+            const statusIndicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (isConnected) {
+                statusIndicator.className = 'status-indicator status-online';
+                statusText.textContent = 'Connected';
+            } else {
+                statusIndicator.className = 'status-indicator status-offline';
+                statusText.textContent = 'Offline';
+            }
+        }
+
+        // Listen for real-time updates
+        votesRef.on('value', (snapshot) => {
+            allVotes = snapshot.val() || {};
+            updateVotingStats();
+        });
+
+        vetoesRef.on('value', (snapshot) => {
+            allVetoes = snapshot.val() || {};
+            updateVotingStats();
+            if (document.querySelector('.voting-section.active')) {
+                renderSongs();
+            }
+        });
+
+        // Listen for song list updates
+        songsRef.on('value', (snapshot) => {
+            const songList = snapshot.val();
+            if (songList && Array.isArray(songList)) {
+                songs = songList;
+                checkSongListStatus();
+            }
+        });
+
+        function updateVotingStats() {
+            const voterCount = Object.keys(allVotes).length;
+            const totalVotes = Object.values(allVotes).reduce((sum, voter) => {
+                return sum + Object.values(voter).reduce((vsum, points) => vsum + points, 0);
+            }, 0);
+            const totalVetoes = Object.values(allVetoes).reduce((sum, voter) => {
+                return sum + Object.keys(voter).length;
+            }, 0);
+
+            const voterCountEl = document.getElementById('voterCount');
+            const totalVotesEl = document.getElementById('totalVotes');
+            const totalVetoesEl = document.getElementById('totalVetoes');
+
+            if (voterCountEl) voterCountEl.textContent = voterCount;
+            if (totalVotesEl) totalVotesEl.textContent = totalVotes;
+            if (totalVetoesEl) totalVetoesEl.textContent = totalVetoes;
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingSection').style.display = 'none';
+            document.querySelector('.setup-section').classList.add('active');
+            checkSongListStatus();
+        }
+
+        function checkSongListStatus() {
+            const voterSetup = document.getElementById('voterSetup');
+            const adminSetup = document.getElementById('adminSetup');
+            
+            if (songs.length > 0) {
+                // Songs are loaded, show voter interface
+                voterSetup.style.display = 'block';
+                adminSetup.style.display = 'none';
+                
+                // Update instructions to show song count
+                const instructions = document.querySelector('.instructions p');
+                instructions.innerHTML = `<strong>Song List:</strong> ${songs.length} songs loaded and ready for voting<br>
+                <strong>Budget:</strong> You have 26 points total to spend on songs<br>
+                <strong>Voting:</strong> Spend 1-3 points per song (your choice)<br>
+                <strong>Veto Power:</strong> Use your single veto to eliminate one song you really don't want to play<br>
+                <strong>Goal:</strong> Select approximately 17 songs for a 1-hour show`;
+            } else {
+                // No songs loaded, show message for voters or admin setup
+                voterSetup.innerHTML = `
+                    <div class="warning">
+                        <strong>Song list not yet uploaded.</strong><br>
+                        The administrator needs to upload the song list before voting can begin. Please check back later or contact the admin.
+                    </div>
+                `;
+            }
+        }
+
+        function toggleAdminMode() {
+            const voterSetup = document.getElementById('voterSetup');
+            const adminSetup = document.getElementById('adminSetup');
+            
+            if (adminSetup.style.display === 'none') {
+                voterSetup.style.display = 'none';
+                adminSetup.style.display = 'block';
+                
+                // Pre-fill with current song list if it exists
+                if (songs.length > 0) {
+                    document.getElementById('songList').value = songs.join('\n');
+                }
+            } else {
+                checkSongListStatus();
+            }
+        }
+
+        async function uploadSongList() {
+            const songText = document.getElementById('songList').value.trim();
+            
+            if (!isConnected) {
+                alert('Not connected to database. Please check your internet connection and try again.');
+                return;
+            }
+            
+            if (!songText) {
+                alert('Please enter the song list');
+                return;
+            }
+            
+            const songArray = songText.split('\n').map(s => s.trim()).filter(s => s);
+            
+            if (songArray.length === 0) {
+                alert('Please enter at least one song');
+                return;
+            }
+            
+            try {
+                await songsRef.set(songArray);
+                alert(`Song list uploaded successfully! (${songArray.length} songs)\n\nYou can now share the voting link with band members.`);
+                
+                // Switch back to voter view
+                songs = songArray;
+                checkSongListStatus();
+            } catch (error) {
+                alert('Error uploading song list: ' + error.message);
+            }
+        }
+
+        async function clearSongList() {
+            if (!confirm('This will clear the song list and prevent voting. Are you sure?')) {
+                return;
+            }
+            
+            try {
+                await songsRef.remove();
+                songs = [];
+                alert('Song list cleared successfully.');
+                checkSongListStatus();
+            } catch (error) {
+                alert('Error clearing song list: ' + error.message);
+            }
+        }
+
+        // Initial load
+        setTimeout(hideLoading, 1000);
+
+        async function startVoting() {
+            voterName = document.getElementById('voterName').value.trim();
+            
+            if (!isConnected) {
+                alert('Not connected to database. Please check your internet connection and try again.');
+                return;
+            }
+            
+            if (!voterName) {
+                alert('Please enter your name');
+                return;
+            }
+            
+            if (songs.length === 0) {
+                alert('Song list not available. Please contact the administrator.');
+                return;
+            }
+            
+            // Check if voter has already voted
+            if (allVotes[voterName]) {
+                if (!confirm('You have already voted. Do you want to update your votes?')) {
+                    return;
+                }
+                // Load existing votes
+                votes = allVotes[voterName] || {};
+                vetoes = allVetoes[voterName] || {};
+                pointsSpent = Object.values(votes).reduce((sum, points) => sum + points, 0);
+                vetoUsed = Object.keys(vetoes).length > 0;
+            }
+            
+            document.querySelector('.setup-section').classList.remove('active');
+            document.querySelector('.voting-section').classList.add('active');
+            
+            renderSongs();
+            updateStats();
+        }
+
+        function renderSongs() {
+            const container = document.getElementById('songsList');
+            container.innerHTML = '';
+            
+            songs.forEach((song, index) => {
+                const isVetoed = Object.values(allVetoes).some(voterVetoes => voterVetoes[song]);
+                const currentVote = votes[song] || 0;
+                const hasVetoedThis = vetoes[song];
+                
+                const songDiv = document.createElement('div');
+                songDiv.className = `song-item ${isVetoed ? 'vetoed' : ''}`;
+                songDiv.innerHTML = `
+                    <div class="song-title">${song}</div>
+                    <div class="song-controls">
+                        <div class="vote-buttons">
+                            <button class="vote-btn ${currentVote === 1 ? 'selected' : ''}" 
+                                    onclick="voteForSong('${song.replace(/'/g, "\\'")}', 1)" 
+                                    ${isVetoed ? 'disabled' : ''}>1</button>
+                            <button class="vote-btn ${currentVote === 2 ? 'selected' : ''}" 
+                                    onclick="voteForSong('${song.replace(/'/g, "\\'")}', 2)" 
+                                    ${isVetoed ? 'disabled' : ''}>2</button>
+                            <button class="vote-btn ${currentVote === 3 ? 'selected' : ''}" 
+                                    onclick="voteForSong('${song.replace(/'/g, "\\'")}', 3)" 
+                                    ${isVetoed ? 'disabled' : ''}>3</button>
+                        </div>
+                        <div class="current-vote">
+                            ${currentVote > 0 ? `Voted: ${currentVote} pts` : 'Not voted'}
+                        </div>
+                        <button class="veto-btn" 
+                                onclick="vetoSong('${song.replace(/'/g, "\\'")}\')" 
+                                ${vetoUsed || isVetoed || hasVetoedThis ? 'disabled' : ''}>
+                            ${hasVetoedThis ? 'VETOED' : isVetoed ? 'Already Vetoed' : 'VETO'}
+                        </button>
+                    </div>
+                `;
+                container.appendChild(songDiv);
+            });
+        }
+
+        function voteForSong(song, points) {
+            const currentVote = votes[song] || 0;
+            const newTotal = pointsSpent - currentVote + points;
+            
+            if (newTotal > 26) {
+                alert('Not enough points remaining!');
+                return;
+            }
+            
+            pointsSpent = newTotal;
+            votes[song] = points;
+            
+            renderSongs();
+            updateStats();
+        }
+
+        async function vetoSong(song) {
+            if (vetoUsed) return;
+            
+            if (confirm(`Are you sure you want to veto "${song}"? This will permanently remove it from consideration and cannot be undone.`)) {
+                vetoes[song] = true;
+                vetoUsed = true;
+                
+                // Remove any votes for this song
+                if (votes[song]) {
+                    pointsSpent -= votes[song];
+                    delete votes[song];
+                }
+                
+                // Save veto to Firebase immediately
+                try {
+                    await vetoesRef.child(voterName).child(song).set(true);
+                } catch (error) {
+                    alert('Error saving veto: ' + error.message);
+                    return;
+                }
+                
+                renderSongs();
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('pointsLeft').textContent = 26 - pointsSpent;
+            document.getElementById('vetoStatus').textContent = vetoUsed ? 'Used' : 'Available';
+            
+            const submitBtn = document.getElementById('submitVote');
+            submitBtn.disabled = pointsSpent === 0;
+        }
+
+        async function submitVote() {
+            if (pointsSpent === 0) {
+                alert('Please vote for at least one song before submitting.');
+                return;
+            }
+            
+            if (!isConnected) {
+                alert('Not connected to database. Please check your internet connection and try again.');
+                return;
+            }
+            
+            try {
+                // Save votes to Firebase
+                await votesRef.child(voterName).set(votes);
+                await vetoesRef.child(voterName).set(vetoes);
+                
+                alert('Your votes have been submitted successfully!');
+                showResults();
+            } catch (error) {
+                alert('Error submitting votes: ' + error.message);
+            }
+        }
+
+        function showResults() {
+            document.querySelector('.voting-section').classList.remove('active');
+            document.querySelector('.setup-section').classList.remove('active');
+            document.querySelector('.results-section').classList.add('active');
+            
+            calculateResults();
+        }
+
+        function backToVoting() {
+            document.querySelector('.results-section').classList.remove('active');
+            document.querySelector('.voting-section').classList.add('active');
+        }
+
+        function calculateResults() {
+            // Combine all votes
+            const songScores = {};
+            const allVetoedSongs = new Set();
+            
+            // Collect all vetoed songs
+            Object.values(allVetoes).forEach(voterVetoes => {
+                Object.keys(voterVetoes).forEach(song => allVetoedSongs.add(song));
+            });
+            
+            // Calculate scores for non-vetoed songs
+            songs.forEach(song => {
+                if (!allVetoedSongs.has(song)) {
+                    songScores[song] = 0;
+                    Object.values(allVotes).forEach(voterVotes => {
+                        songScores[song] += voterVotes[song] || 0;
+                    });
+                }
+            });
+            
+            // Sort by score and get top ~17 songs (approximately 1 hour)
+            const sortedSongs = Object.entries(songScores)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 17);
+            
+            renderResults(sortedSongs, allVetoedSongs);
+        }
+
+        function renderResults(sortedSongs, vetoedSongs) {
+            const container = document.getElementById('resultsList');
+            container.innerHTML = '';
+            
+            sortedSongs.forEach(([song, score], index) => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result-item';
+                resultDiv.innerHTML = `
+                    <div class="result-rank">${index + 1}</div>
+                    <div class="result-song">${song}</div>
+                    <div class="result-points">${score} pts</div>
+                `;
+                container.appendChild(resultDiv);
+            });
+            
+            // Show vetoed songs info if any
+            if (vetoedSongs.size > 0) {
+                const vetoDiv = document.createElement('div');
+                vetoDiv.className = 'warning';
+                vetoDiv.innerHTML = `<strong>Vetoed Songs (${vetoedSongs.size}):</strong> ${Array.from(vetoedSongs).join(', ')}`;
+                container.appendChild(vetoDiv);
+            }
+        }
+
+        function viewAllResults() {
+            // Calculate all song scores
+            const songScores = {};
+            const allVetoedSongs = new Set();
+            
+            Object.values(allVetoes).forEach(voterVetoes => {
+                Object.keys(voterVetoes).forEach(song => allVetoedSongs.add(song));
+            });
+            
+            songs.forEach(song => {
+                songScores[song] = 0;
+                Object.values(allVotes).forEach(voterVotes => {
+                    songScores[song] += voterVotes[song] || 0;
+                });
+            });
+            
+            const allSortedSongs = Object.entries(songScores)
+                .sort(([,a], [,b]) => b - a);
+            
+            const container = document.getElementById('resultsList');
+            container.innerHTML = '<h3 style="margin-bottom: 20px;">All Songs Results</h3>';
+            
+            allSortedSongs.forEach(([song, score], index) => {
+                const isVetoed = allVetoedSongs.has(song);
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'result-item';
+                resultDiv.style.opacity = isVetoed ? '0.5' : '1';
+                resultDiv.innerHTML = `
+                    <div class="result-rank">${index + 1}</div>
+                    <div class="result-song">${song} ${isVetoed ? '(VETOED)' : ''}</div>
+                    <div class="result-points">${score} pts</div>
+                `;
+                container.appendChild(resultDiv);
+            });
+            
+            // Add back button
+            const backBtn = document.createElement('button');
+            backBtn.className = 'btn';
+            backBtn.textContent = 'Back to Setlist';
+            backBtn.style.marginTop = '20px';
+            backBtn.onclick = calculateResults;
+            container.appendChild(backBtn);
+        }
+
+        async function resetVoting() {
+            if (!confirm('This will clear ALL votes and vetoes from all band members. Are you absolutely sure?')) {
+                return;
+            }
+            
+            if (!confirm('Last chance! This will delete everyone\'s votes permanently. Continue?')) {
+                return;
+            }
+            
+            try {
+                await votesRef.remove();
+                await vetoesRef.remove();
+                alert('All voting data cleared successfully.');
+                location.reload();
+            } catch (error) {
+                alert('Error clearing data: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
