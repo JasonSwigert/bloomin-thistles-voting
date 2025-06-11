@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloomin' Thistles Spring Show Voting</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .setup-section, .voting-section, .results-section {
+            display: none;
+        }
+
+        .setup-section.active, .voting-section.active, .results-section.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .voter-stats {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .points-remaining {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .veto-status {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .song-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .song-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .song-item.vetoed {
+            background: #fee;
+            border-color: #ff6b6b;
+            opacity: 0.7;
+        }
+
+        .song-title {
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .song-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .vote-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .vote-btn {
+            width: 45px;
+            height: 45px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 50%;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .vote-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .vote-btn.selected {
+            background: #667eea;
+            color: white;
+        }
+
+        .vote-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .veto-btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .veto-btn:hover {
+            background: #ee5a24;
+            transform: scale(1.05);
+        }
+
+        .veto-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .current-vote {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .results-list {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-rank {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 1.2rem;
+            min-width: 30px;
+        }
+
+        .result-song {
+            flex: 1;
+            margin-left: 15px;
+            font-weight: 600;
+        }
+
+        .result-points {
+            background: #667eea;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+        }
+
+        .setlist-info {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .admin-controls {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .instructions {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+        }
+
+        .instructions h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .instructions p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .song-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .vote-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌸 Bloomin' Thistles Spring Show</h1>
+            <p>Vote for your setlist democratically</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Setup Section -->
+            <div class="setup-section active">
+                <div class="instructions">
+                    <h4>Voting Instructions:</h4>
+                    <p><strong>Budget:</strong> You have 26 points total to spend on songs<br>
+                    <strong>Voting:</strong> Spend 1-3 points per song (your choice)<br>
+                    <strong>Veto Power:</strong> Use your single veto to eliminate one song you really don't want to play<br>
+                    <strong>Goal:</strong> Select approximately 17 songs for a 1-hour show</p>
+                </div>
+
+                <h2>Setup Your Vote</h2>
+                <div class="input-group">
+                    <label for="voterName">Your Name:</label>
+                    <input type="text" id="voterName" placeholder="Enter your name">
+                </div>
+                
+                <div class="input-group">
+                    <label for="songList">Complete Song List (paste from collection app):</label>
+                    <textarea id="songList" placeholder="Paste the complete list of songs here, one per line..."></textarea>
+                </div>
+                
+                <button class="btn" onclick="startVoting()">Start Voting</button>
+            </div>
+
+            <!-- Voting Section -->
+            <div class="voting-section">
+                <div class="voter-stats">
+                    <div class="points-remaining">Points Remaining: <span id="pointsLeft">26</span>/26</div>
+                    <div class="veto-status">Veto Available: <span id="vetoStatus">Yes</span></div>
+                </div>
+
+                <div id="songsList"></div>
+
+                <button class="btn" id="submitVote" onclick="submitVote()" disabled>Submit Your Votes</button>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <div class="setlist-info">
+                    <h3>🎵 Bloomin' Thistles Spring Show Setlist</h3>
+                    <p>Top ~17 songs • Approximately 1 hour of music • Vetoed songs excluded</p>
+                </div>
+                
+                <div class="results-list" id="resultsList"></div>
+                
+                <div class="admin-controls">
+                    <button class="btn" onclick="resetVoting()">Start New Vote</button>
+                    <button class="btn" onclick="viewAllResults()" style="margin-top: 10px; background: linear-gradient(135deg, #28a745, #20c997);">View All Songs & Scores</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let songs = [];
+        let votes = {};
+        let vetoes = {};
+        let voter
