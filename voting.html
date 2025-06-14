@@ -703,6 +703,9 @@
                     <div class="song-title">${song}</div>
                     <div class="song-controls">
                         <div class="vote-buttons">
+                            <button class="vote-btn ${currentVote === 0 ? 'selected' : ''}" 
+                                    onclick="voteForSong('${song.replace(/'/g, "\\'")}', 0)" 
+                                    ${isVetoed ? 'disabled' : ''}>0</button>
                             <button class="vote-btn ${currentVote === 1 ? 'selected' : ''}" 
                                     onclick="voteForSong('${song.replace(/'/g, "\\'")}', 1)" 
                                     ${isVetoed ? 'disabled' : ''}>1</button>
@@ -717,9 +720,9 @@
                             ${currentVote > 0 ? `Voted: ${currentVote} pts` : 'Not voted'}
                         </div>
                         <button class="veto-btn" 
-                                onclick="vetoSong('${song.replace(/'/g, "\\'")}\')" 
-                                ${vetoUsed || isVetoed || hasVetoedThis ? 'disabled' : ''}>
-                            ${hasVetoedThis ? 'VETOED' : isVetoed ? 'Already Vetoed' : 'VETO'}
+                                onclick="toggleVeto('${song.replace(/'/g, "\\'")}\')" 
+                                ${isVetoed && !hasVetoedThis ? 'disabled' : ''}>
+                            ${hasVetoedThis ? 'UN-VETO' : isVetoed ? 'Already Vetoed' : vetoUsed ? 'VETO USED' : 'VETO'}
                         </button>
                     </div>
                 `;
@@ -737,35 +740,65 @@
             }
             
             pointsSpent = newTotal;
-            votes[song] = points;
+            
+            if (points === 0) {
+                // Remove the vote entirely
+                delete votes[song];
+            } else {
+                votes[song] = points;
+            }
             
             renderSongs();
             updateStats();
         }
 
-        async function vetoSong(song) {
-            if (vetoUsed) return;
+        function toggleVeto(song) {
+            const hasVetoedThis = vetoes[song];
             
-            if (confirm(`Are you sure you want to veto "${song}"? This will permanently remove it from consideration and cannot be undone.`)) {
-                vetoes[song] = true;
-                vetoUsed = true;
-                
-                // Remove any votes for this song
-                if (votes[song]) {
-                    pointsSpent -= votes[song];
-                    delete votes[song];
+            if (hasVetoedThis) {
+                // Un-veto the song
+                if (confirm(`Remove your veto from "${song}"? You'll be able to veto a different song.`)) {
+                    delete vetoes[song];
+                    vetoUsed = Object.keys(vetoes).length > 0;
+                    
+                    renderSongs();
+                    updateStats();
                 }
-                
-                // Save veto to Firebase immediately
-                try {
-                    await vetoesRef.child(voterName).child(song).set(true);
-                } catch (error) {
-                    alert('Error saving veto: ' + error.message);
-                    return;
+            } else {
+                // Veto the song
+                if (vetoUsed) {
+                    // Already used veto on another song, ask if they want to switch
+                    const currentVetoedSong = Object.keys(vetoes)[0];
+                    if (confirm(`You've already vetoed "${currentVetoedSong}". Switch your veto to "${song}" instead?`)) {
+                        // Remove old veto and add new one
+                        delete vetoes[currentVetoedSong];
+                        vetoes[song] = true;
+                        
+                        // Remove any votes for the newly vetoed song
+                        if (votes[song]) {
+                            pointsSpent -= votes[song];
+                            delete votes[song];
+                        }
+                        
+                        renderSongs();
+                        updateStats();
+                    }
+                } else {
+                    // First veto
+                    if (confirm(`Are you sure you want to veto "${song}"? This will remove it from consideration (you can change this before submitting).`)) {
+                        vetoes[song] = true;
+                        vetoUsed = true;
+                        
+                        // Remove any votes for this song
+                        if (votes[song]) {
+                            pointsSpent -= votes[song];
+                            delete votes[song];
+                        }
+                        
+                        renderSongs();
+                        updateStats();
+                    }
                 }
-                
-                renderSongs();
-                updateStats();
             }
         }
 
@@ -789,7 +822,7 @@
             }
             
             try {
-                // Save votes to Firebase
+                // Save votes and vetoes to Firebase
                 await votesRef.child(voterName).set(votes);
                 await vetoesRef.child(voterName).set(vetoes);
                 
